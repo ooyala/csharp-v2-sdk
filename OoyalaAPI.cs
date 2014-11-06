@@ -352,7 +352,8 @@ namespace Ooyala.API
             {
                 DateTime now = DateTime.UtcNow;
                 //Round up to the expiration to the next hour for higher caching performance
-                DateTime expiresWindow = new DateTime(now.Year, now.Month, now.Day, now.Hour + 1, 0, 0);
+                DateTime expiresWindow = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+                expiresWindow = expiresWindow.AddHours(1);
                 int expires = (int)(expiresWindow - new DateTime(1970, 1, 1)).TotalSeconds;
                 parameters.Add("expires", expires.ToString());
             }
