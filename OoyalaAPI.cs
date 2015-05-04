@@ -181,11 +181,11 @@ namespace Ooyala.API
         /// </param>
         public Object putBytes(string path, Dictionary<String, String> parameters, System.Byte[] body, String fileName = null)
         {
-            var url = this.generateURL("PUT", path, parameters, Encoding.Default.GetString(body));
+            
 
             System.Net.Cache.RequestCachePolicy requestCachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
 
-            HttpWebRequest request = HttpWebRequest.Create(url) as HttpWebRequest;
+            HttpWebRequest request = HttpWebRequest.Create(path) as HttpWebRequest;
             request.CachePolicy = requestCachePolicy;
             request.Method = "PUT";
             request.AllowWriteStreamBuffering = false;
