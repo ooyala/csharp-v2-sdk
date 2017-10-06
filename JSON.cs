@@ -51,13 +51,13 @@ namespace Procurios.Public
 		{
 			success = true;
 			if (json != null) {
-                char[] charArray = json.ToCharArray();
-                int index = 0;
+				char[] charArray = json.ToCharArray();
+				int index = 0;
 				object value = ParseValue(charArray, ref index, ref success);
 				return value;
-            } else {
-                return null;
-            }
+			} else {
+				return null;
+			}
 		}
     
 		/// <summary>
@@ -158,7 +158,29 @@ namespace Procurios.Public
 				case JSON.TOKEN_STRING:
 					return ParseString(json, ref index, ref success);
 				case JSON.TOKEN_NUMBER:
-					return ParseNumber(json, ref index, ref success);
+					{
+						EatWhitespace(json, ref index);
+
+						int lastIndex = GetLastIndexOfNumber(json, index);
+            
+						if (json[lastIndex + 1] == 'f')
+						{
+							return ParseSingle(json, ref index, ref success);
+						}
+						else if (!ContainsDecimal(json, index))
+						{
+							return ParseInt(json, ref index, ref success);
+						}
+						else if (ContainsDecimal(json, index))
+						{
+							return ParseDouble(json, ref index, ref success);
+						}
+						else
+						{
+							NextToken(json, ref index);
+							return null;
+						}
+					}
 				case JSON.TOKEN_CURLY_OPEN:
 					return ParseObject(json, ref index, ref success);
 				case JSON.TOKEN_SQUARED_OPEN:
@@ -254,10 +276,32 @@ namespace Procurios.Public
 			return s.ToString();
 		}
 
-		protected static double ParseNumber(char[] json, ref int index, ref bool success)
+		protected static int ParseInt(char[] json, ref int index, ref bool success)
 		{
-			EatWhitespace(json, ref index);
+			int lastIndex = GetLastIndexOfNumber(json, index);
+			int charLength = (lastIndex - index) + 1;
 
+			int number;
+			success = Int32.TryParse(new string(json, index, charLength), NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+
+			index = lastIndex + 1;
+			return number;
+		}
+
+		protected static float ParseSingle(char[] json, ref int index, ref bool success)
+		{
+			int lastIndex = GetLastIndexOfNumber(json, index);
+			int charLength = (lastIndex - index) + 1;
+
+			float number;
+			success = Single.TryParse(new string(json, index, charLength), NumberStyles.Any, CultureInfo.InvariantCulture, out number);
+
+			index = lastIndex + 2;
+			return number;
+		}
+
+		protected static double ParseDouble(char[] json, ref int index, ref bool success)
+		{
 			int lastIndex = GetLastIndexOfNumber(json, index);
 			int charLength = (lastIndex - index) + 1;
 
@@ -278,6 +322,18 @@ namespace Procurios.Public
 				}
 			}
 			return lastIndex - 1;
+		}
+
+		protected static bool ContainsDecimal(char[] json, int index)
+		{
+			int lastIndex = GetLastIndexOfNumber(json, index);
+
+			for(int i = index; i < lastIndex; i++)
+			{
+				if (json[i] == '.') return true;        
+			}
+
+			return false;
 		}
 
 		protected static void EatWhitespace(char[] json, ref int index)
@@ -376,12 +432,12 @@ namespace Procurios.Public
 				success = SerializeObject((Hashtable)value, builder);
 			} else if (value is ArrayList) {
 				success = SerializeArray((ArrayList)value, builder);
-			} else if (value != null && value.GetType().IsArray){
-				var tmp = new ArrayList();
-				tmp.AddRange((ICollection)value);
-				success = SerializeArray(tmp, builder);
-			} else if (IsNumeric(value)) {
-				success = SerializeNumber(Convert.ToDouble(value), builder);
+			} else if (value is Int32) {
+				success = SerializeInt(Convert.ToInt32(value), builder);
+			} else if (value is Single) {
+				success = SerializeSingle(Convert.ToSingle(value), builder);
+			} else if (value is Double) {
+				success = SerializeDouble(Convert.ToDouble(value), builder);
 			} else if ((value is Boolean) && ((Boolean)value == true)) {
 				builder.Append("true");
 			} else if ((value is Boolean) && ((Boolean)value == false)) {
@@ -479,23 +535,31 @@ namespace Procurios.Public
 			return true;
 		}
 
-		protected static bool SerializeNumber(double number, StringBuilder builder)
+		protected static bool SerializeInt(int number, StringBuilder builder)
 		{
-			builder.Append(Convert.ToString(number, CultureInfo.InvariantCulture));
+			string str = Convert.ToString(number, CultureInfo.InvariantCulture);
+			builder.Append(str);
 			return true;
 		}
 
-		/// <summary>
-		/// Determines if a given object is numeric in any way
-		/// (can be integer, double, null, etc). 
-		/// 
-		/// Thanks to mtighe for pointing out Double.TryParse to me.
-		/// </summary>
-		protected static bool IsNumeric(object o)
+		protected static bool SerializeSingle(float number, StringBuilder builder)
 		{
-			double result;
+			string str = Convert.ToString(number, CultureInfo.InvariantCulture);
+			if (Int32.TryParse(str, out int result))
+				str += ".0f";
+			else
+				str += "f";
+			builder.Append(str);
+			return true;
+			}
 
-			return (o == null) ? false : Double.TryParse(o.ToString(), out result);
+		protected static bool SerializeDouble(double number, StringBuilder builder)
+		{
+			string str = Convert.ToString(number, CultureInfo.InvariantCulture);
+			if (Int32.TryParse(str, out int result))
+				str += ".0";
+			builder.Append(str);
+			return true;
 		}
 	}
 }
